@@ -1,0 +1,798 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Restock Tracker</title>
+<style>
+  :root {
+    --bg: #f6f5f1; --card: #ffffff; --ink: #1d1d1f; --muted: #6b6b70; --line: #e4e2dc;
+    --accent: #d93a2b; --green: #1f8a4c; --amber: #b7791f; --gray: #8a8a90; --red: #c0392b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #141416; --card: #1e1e22; --ink: #f2f2f4; --muted: #9a9aa2; --line: #2e2e34;
+            --green: #3fbf74; --amber: #e0a43a; --red: #ff6b5e; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 900px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  h1 { margin: 0; font-size: 26px; letter-spacing: -0.02em; }
+  h1 span { color: var(--accent); }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted);
+       margin: 32px 0 10px; }
+  .meta { color: var(--muted); font-size: 13px; }
+  .grid { display: grid; gap: 10px; }
+  .row { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+         padding: 12px 14px; display: flex; align-items: center; gap: 12px; }
+  .row .main { flex: 1; min-width: 0; }
+  .row .title { font-weight: 600; overflow-wrap: anywhere; }
+  .row .sub { color: var(--muted); font-size: 13px; }
+  .pill { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; white-space: nowrap;
+          border: 1px solid currentColor; }
+  .in_stock { color: var(--green); } .preorder { color: var(--amber); }
+  .out_of_stock { color: var(--gray); } .blocked, .error { color: var(--red); } .unknown { color: var(--muted); }
+  .released, .past { color: var(--gray); } .confirmed { color: var(--green); }
+  .reported { color: var(--amber); } .rumored { color: var(--muted); }
+  .countdown { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 64px; text-align: right; }
+  .row.hot { border-color: var(--green); box-shadow: 0 0 0 1px var(--green) inset; }
+  a { color: inherit; }
+  .empty { color: var(--muted); padding: 14px; border: 1px dashed var(--line); border-radius: 10px; }
+  .tag { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; margin-left: 6px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .controls input, .controls select, .controls button {
+    font: inherit; font-size: 14px; padding: 7px 10px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  .controls input { width: 130px; }
+  .controls button { cursor: pointer; font-weight: 600; }
+  .controls button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .dist { font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+  .coords { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .chips label { font-size: 13px; border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px;
+                 background: var(--card); cursor: pointer; user-select: none; }
+  .chips input { margin: 0 5px 0 0; vertical-align: -1px; }
+  .copy { font-size: 12px; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--line);
+          background: transparent; color: var(--muted); cursor: pointer; margin-left: 6px; }
+  .row.store { flex-wrap: wrap; }
+  .restock { font-size: 13px; margin-top: 3px; }
+  .restock b { color: var(--green); font-weight: 600; }
+  .restock .none { color: var(--muted); font-style: italic; }
+  .editor { flex-basis: 100%; border-top: 1px solid var(--line); margin-top: 8px; padding-top: 10px;
+            display: grid; gap: 10px; }
+  .editor .lbl { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .days { display: flex; flex-wrap: wrap; gap: 5px; }
+  .days label { font-size: 13px; border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; cursor: pointer; }
+  .days input { display: none; }
+  .days label:has(input:checked) { background: var(--green); border-color: var(--green); color: #fff; }
+  .editor select, .editor input[type=date], .editor textarea, .editor button {
+    font: inherit; font-size: 14px; padding: 6px 9px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  .editor textarea { width: 100%; min-height: 56px; resize: vertical; }
+  .editor .line { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .editor button { cursor: pointer; font-weight: 600; }
+  .editor button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .editbtn { font-size: 12px; padding: 4px 9px; border-radius: 6px; border: 1px solid var(--line);
+             background: transparent; color: var(--ink); cursor: pointer; white-space: nowrap; }
+  .side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .history { font-size: 12px; color: var(--muted); }
+  .cats { margin: 14px 0 0; }
+  .cats button { font: inherit; font-size: 13px; border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px;
+                 background: var(--card); color: var(--ink); cursor: pointer; }
+  .cats button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .chips .x { margin-left: 6px; border: 0; background: none; color: var(--muted); cursor: pointer; font: inherit; padding: 0; }
+  .today { font-size: 11px; font-weight: 700; color: #fff; background: var(--green); border-radius: 999px; padding: 2px 8px; margin-left: 6px; vertical-align: 1px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button { border: 0 !important; border-radius: 0 !important; background: var(--card); }
+  .seg button.on { background: var(--ink) !important; color: var(--bg) !important; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: -2px; }
+  .legend i.gap { background: transparent; border: 1px dashed var(--line); }
+  .trend { display: block; }
+  .strip { width: 100%; height: auto; display: block; margin: 8px 0 4px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; margin-top: 6px; }
+  .stats b { font-variant-numeric: tabular-nums; }
+  .stats span { color: var(--muted); }
+  .heat-card { margin-top: 10px; }
+  .heat { width: 100%; border-collapse: separate; border-spacing: 3px; margin-top: 10px; font-size: 12px; }
+  .heat th { font-weight: 500; color: var(--muted); text-align: center; padding: 0 2px; }
+  .heat th.rowh { text-align: right; white-space: nowrap; padding-right: 6px; }
+  .heat td { height: 26px; border-radius: 4px; text-align: center; font-variant-numeric: tabular-nums;
+             background: var(--line); color: var(--ink); min-width: 28px; }
+  .heat tr.instore td { outline: 1px dashed var(--line); outline-offset: -1px; }
+  :root { --h1: #d6ecdf; --h2: #9fd2b3; --h3: #5fb184; --h4: #1f8a4c; --h4ink: #ffffff; --tl-in: #1f8a4c; --tl-pre: #c98a1e; --tl-out: #c9c7c1; --tl-bad: #c0392b; --tl-unk: #8e8ca0; }
+  @media (prefers-color-scheme: dark) {
+    :root { --h1: #1c3527; --h2: #23573a; --h3: #2f8456; --h4: #3fbf74; --h4ink: #0d1f15; --tl-in: #3fbf74; --tl-pre: #e0a43a; --tl-out: #4a4a52; --tl-bad: #ff6b5e; --tl-unk: #7a7890; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1><span>Restock</span> Tracker</h1>
+    <div class="meta" id="updated"></div>
+  </header>
+  <div class="chips cats" id="catFilter" role="group" aria-label="Category"></div>
+
+  <h2>Stock watch</h2>
+  <div class="grid" id="stock"></div>
+
+  <h2>Stock trends</h2>
+  <div class="controls">
+    <div class="seg" id="trendRange" role="group" aria-label="Time range">
+      <button data-days="7">7 days</button><button data-days="30">30 days</button>
+    </div>
+    <a class="meta" href="history.csv" download>Download history.csv</a>
+  </div>
+  <div class="legend" id="trendLegend"></div>
+  <div class="grid" id="trends"></div>
+  <div class="row heat-card" id="heatCard" hidden>
+    <div class="main">
+      <div class="title" id="heatTitle">When restocks happen</div>
+      <div class="sub" id="heatSub"></div>
+      <div id="heat"></div>
+    </div>
+  </div>
+
+  <h2>My stores</h2>
+  <div class="grid" id="myStores"></div>
+
+  <h2>Stores near me</h2>
+  <div class="controls">
+    <button class="primary" id="useLocation">Use my location</button>
+    <span class="meta">or</span>
+    <input id="zip" placeholder="ZIP or city" autocomplete="postal-code">
+    <button id="searchZip">Search</button>
+    <select id="radius" aria-label="Search radius">
+      <option value="5">5 mi</option>
+      <option value="10" selected>10 mi</option>
+      <option value="25">25 mi</option>
+      <option value="50">50 mi</option>
+    </select>
+  </div>
+  <div class="controls">
+    <input id="customStore" placeholder="Any store or shop type (e.g. Apple, Lego, vinyl)" style="width:300px">
+    <button id="addCustom">Add to search</button>
+  </div>
+  <div class="chips" id="storeTypes"></div>
+  <p class="meta" id="storeStatus"></p>
+  <div class="grid" id="stores"></div>
+
+  <h2>Upcoming drops</h2>
+  <div class="grid" id="releases"></div>
+  <p class="meta" id="releasesUpdated"></p>
+</main>
+
+<script src="releases.js"></script>
+<script src="status.js" onerror="window.STATUS = null"></script>
+<script src="history.js" onerror="window.HISTORY = null"></script>
+<script>
+  const LABELS = { in_stock: "In stock", preorder: "Pre-order", out_of_stock: "Out of stock",
+                   blocked: "Blocked", unknown: "Unknown", error: "Error" };
+  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const store = {
+    get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  };
+
+  /* ---------------- Categories ----------------
+     Any product can carry a "category" in products.json (and drops in releases.js).
+     The chips at the top filter stock watch, trends and drops by it. */
+  // Older releases.js entries have a region (EN/JP) but no category: they are Pokémon sets.
+  const catOf = x => (x && x.category ? String(x.category) : x && x.region ? "Pokémon TCG" : "General");
+  let catSel = store.get("category") || "All";
+  const catOk = x => catSel === "All" || catOf(x) === catSel;
+  function renderCats() {
+    const all = new Set();
+    (window.STATUS?.products || []).forEach(p => all.add(catOf(p)));
+    (window.HISTORY?.products || []).forEach(p => all.add(catOf(p)));
+    (window.RELEASES || []).forEach(p => all.add(catOf(p)));
+    const cats = [...all].sort((a, b) => a.localeCompare(b));
+    if (catSel !== "All" && !all.has(catSel)) catSel = "All";
+    const el = document.getElementById("catFilter");
+    el.hidden = cats.length < 2;
+    el.innerHTML = ["All", ...cats].map(c => `<button data-cat="${esc(c)}" class="${c === catSel ? "on" : ""}">${esc(c)}</button>`).join("");
+  }
+  document.getElementById("catFilter").addEventListener("click", e => {
+    const b = e.target.closest("button[data-cat]");
+    if (!b) return;
+    catSel = b.dataset.cat;
+    store.set("category", catSel);
+    renderCats(); renderStock(); renderReleases(); renderTrends();
+  });
+  const ago = iso => {
+    if (!iso) return "never";
+    const m = Math.round((Date.now() - new Date(iso)) / 60000);
+    if (m < 1) return "just now";
+    if (m < 60) return m + " min ago";
+    const h = Math.round(m / 60);
+    return h < 48 ? h + " hr ago" : Math.round(h / 24) + " days ago";
+  };
+
+  function renderStock() {
+    const el = document.getElementById("stock");
+    const s = window.STATUS;
+    if (!s || !s.products || !s.products.length) {
+      el.innerHTML = '<div class="empty">No results yet. Add product links to <b>products.json</b>, then run <b>start-tracker.bat</b>.</div>';
+      document.getElementById("updated").textContent = "";
+      return;
+    }
+    document.getElementById("updated").textContent = "Last check " + ago(s.updated);
+    const order = ["in_stock", "preorder", "unknown", "blocked", "error", "out_of_stock"];
+    const items = s.products.filter(catOk).sort((a, b) => order.indexOf(a.status) - order.indexOf(b.status));
+    if (!items.length) { el.innerHTML = `<div class="empty">Nothing in ${esc(catSel)} yet.</div>`; return; }
+    el.innerHTML = items.map(p => `
+      <div class="row ${p.status === "in_stock" || p.status === "preorder" ? "hot" : ""}">
+        <div class="main">
+          <div class="title"><a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.name)}</a>
+            ${p.variant ? `<span class="tag">${esc(p.variant)}</span>` : ""}
+            ${p.retailer ? `<span class="tag">${esc(p.retailer)}</span>` : ""}
+            ${catSel === "All" && p.category ? `<span class="tag">${esc(p.category)}</span>` : ""}</div>
+          <div class="sub">Status since ${ago(p.last_change)} · checked ${ago(p.checked)} · ${esc(p.detail)}</div>
+        </div>
+        <span class="pill ${esc(p.status)}">${LABELS[p.status] || esc(p.status)}</span>
+      </div>`).join("");
+  }
+
+  function renderReleases() {
+    const el = document.getElementById("releases");
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const list = (window.RELEASES || []).filter(catOk).map(r => {
+      const d = r.date ? new Date(r.date + "T00:00:00") : null;
+      return { ...r, d, days: d ? Math.round((d - today) / 86400000) : null };
+    }).sort((a, b) => {
+      const ka = a.d ? (a.days < 0 ? 1e9 - a.days : a.days) : 5e8;
+      const kb = b.d ? (b.days < 0 ? 1e9 - b.days : b.days) : 5e8;
+      return ka - kb;
+    });
+    el.innerHTML = list.map(r => {
+      const when = r.d ? r.d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "Date TBA";
+      let cd = "—";
+      if (r.days !== null) cd = r.days > 0 ? r.days + "d" : r.days === 0 ? "Today" : "Out";
+      const cls = r.days !== null && r.days < 0 ? "past" : r.status;
+      return `
+      <div class="row">
+        <div class="main">
+          <div class="title">${esc(r.name)}${r.region ? `<span class="tag">${esc(r.region)}</span>` : ""}${catSel === "All" ? `<span class="tag">${esc(catOf(r))}</span>` : ""}</div>
+          <div class="sub">${esc(when)}${r.type ? " · " + esc(r.type) : ""}${r.note ? " · " + esc(r.note) : ""}</div>
+        </div>
+        <span class="pill ${esc(cls)}">${esc(r.status)}</span>
+        <span class="countdown">${cd}</span>
+      </div>`;
+    }).join("") || `<div class="empty">No drops listed${catSel === "All" ? "" : " for " + esc(catSel)}. Add them to releases.js.</div>`;
+    if (window.RELEASES_UPDATED)
+      document.getElementById("releasesUpdated").textContent = "Calendar last edited " + window.RELEASES_UPDATED + ". Add any product's release dates to releases.js.";
+  }
+
+  renderCats();
+  renderStock();
+  renderReleases();
+
+  // Pick up new checker results every minute without reloading the page
+  // (a full reload would clear the store search).
+  setInterval(() => {
+    const s = document.createElement("script");
+    s.src = "status.js?t=" + Date.now();
+    s.onload = () => { renderCats(); renderStock(); s.remove(); };
+    s.onerror = () => s.remove();
+    document.body.appendChild(s);
+    const h = document.createElement("script");
+    h.src = "history.js?t=" + Date.now();
+    h.onload = () => { renderCats(); renderTrends(); h.remove(); };
+    h.onerror = () => h.remove();
+    document.body.appendChild(h);
+  }, 60000);
+
+  /* ---------------- Stores near me ----------------
+     Store data comes from OpenStreetMap (free, no account or key).
+     Each group = chain names (matched at the start of the store's brand or name)
+     plus OpenStreetMap shop types. Only checked groups are searched.
+     Add your own with the "Any store or shop type" box. */
+  const STORE_GROUPS = [
+    { id: "bigbox", label: "Big-box", on: true,
+      brands: ["Target", "Walmart", "Costco", "Sam.s Club", "Meijer", "BJ.s Wholesale", "Kohl.s"] },
+    { id: "electronics", label: "Electronics & games", on: true,
+      brands: ["Best Buy", "GameStop", "Micro Center", "Apple"], shops: ["electronics", "video_games", "computer"] },
+    { id: "shoes", label: "Shoes & sneakers", on: true,
+      brands: ["Foot Locker", "Finish Line", "JD Sports", "Nike", "Champs Sports", "DTLR", "Shoe Palace", "Hibbett", "Adidas", "New Balance"],
+      shops: ["shoes"] },
+    { id: "toys", label: "Toys, cards & hobby", on: true,
+      brands: ["Lego", "Five Below"], shops: ["games", "collector", "anime", "comics", "hobby", "trading_cards", "toys", "model"] },
+    { id: "books", label: "Books", brands: ["Barnes & Noble", "Books-A-Million"], shops: ["books"] },
+    { id: "sports", label: "Sporting goods", brands: ["Dick.s Sporting Goods", "Academy Sports", "REI", "Big 5"], shops: ["sports", "outdoor"] },
+    { id: "department", label: "Department stores", brands: ["Macy.s", "Nordstrom", "JCPenney", "Dillard.s"], shops: ["department_store"] },
+    { id: "clothing", label: "Clothing & streetwear", shops: ["clothes", "boutique"] },
+    { id: "beauty", label: "Beauty", brands: ["Sephora", "Ulta"], shops: ["cosmetics", "beauty"] },
+    { id: "home", label: "Home & hardware", brands: ["Home Depot", "The Home Depot", "Lowe.s", "IKEA", "Bed Bath"], shops: ["doityourself", "hardware", "furniture", "houseware"] },
+  ];
+  const reEsc = x => x.replace(/[\\"]/g, "").replace(/[()[\]{}+*?^$|]/g, m => "\\" + m);
+  const nameRx = list => new RegExp("^(" + list.join("|") + ")", "i");
+  const OVERPASS = "https://overpass-api.de/api/interpreter";
+  const statusEl = document.getElementById("storeStatus");
+  const storesEl = document.getElementById("stores");
+  let lastResults = [];
+
+  // Store-group chips and custom searches (remembered between visits)
+  const savedGroups = store.get("storeGroups");
+  const enabled = new Set(savedGroups || STORE_GROUPS.filter(g => g.on).map(g => g.id));
+  let customs = store.get("customStores") || [];
+  const groupsInUse = () => [
+    ...STORE_GROUPS.filter(g => enabled.has(g.id)),
+    ...customs.map(c => ({ id: "custom:" + c, label: c, custom: c })),
+  ];
+  function renderChips() {
+    document.getElementById("storeTypes").innerHTML =
+      STORE_GROUPS.map(g => `<label><input type="checkbox" value="${g.id}" ${enabled.has(g.id) ? "checked" : ""}>${esc(g.label)}</label>`).join("") +
+      customs.map(c => `<label><input type="checkbox" checked disabled>${esc(c)}<button class="x" data-rm="${esc(c)}" aria-label="Remove ${esc(c)}">×</button></label>`).join("");
+  }
+  renderChips();
+  const research = () => { const last = store.get("lastLocation"); if (last) findStores(last.lat, last.lon, last.placeLabel); };
+  document.getElementById("storeTypes").addEventListener("change", e => {
+    e.target.checked ? enabled.add(e.target.value) : enabled.delete(e.target.value);
+    store.set("storeGroups", [...enabled]);
+    research();
+  });
+  document.getElementById("storeTypes").addEventListener("click", e => {
+    const b = e.target.closest("button[data-rm]");
+    if (!b) return;
+    e.preventDefault();
+    customs = customs.filter(c => c !== b.dataset.rm);
+    store.set("customStores", customs);
+    renderChips(); research();
+  });
+  function addCustom() {
+    const v = document.getElementById("customStore").value.trim();
+    if (!v || customs.includes(v)) return;
+    customs = [...customs, v].slice(-8);
+    store.set("customStores", customs);
+    document.getElementById("customStore").value = "";
+    renderChips(); research();
+  }
+  document.getElementById("addCustom").addEventListener("click", addCustom);
+  document.getElementById("customStore").addEventListener("keydown", e => { if (e.key === "Enter") addCustom(); });
+
+  function classify(t) {
+    const nm = t.brand || t.name || "", shop = (t.shop || "").toLowerCase();
+    for (const g of groupsInUse()) {
+      if (g.custom) {
+        const rx = new RegExp(reEsc(g.custom), "i");
+        if (rx.test(t.name || "") || rx.test(t.brand || "") || rx.test(t.shop || "")) return g;
+        continue;
+      }
+      if (g.brands && (nameRx(g.brands).test(t.brand || "") || nameRx(g.brands).test(t.name || ""))) return g;
+      if (g.shops && g.shops.includes(shop)) return g;
+    }
+    return null;
+  }
+
+  const savedRadius = store.get("radius");
+  if (savedRadius) document.getElementById("radius").value = savedRadius;
+  const savedZip = store.get("zip");
+  if (savedZip) document.getElementById("zip").value = savedZip;
+
+  function miles(lat1, lon1, lat2, lon2) {
+    const R = 3958.8, rad = x => x * Math.PI / 180;
+    const dLat = rad(lat2 - lat1), dLon = rad(lon2 - lon1);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLon / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+  }
+
+  async function findStores(lat, lon, placeLabel) {
+    const radiusMi = Number(document.getElementById("radius").value);
+    store.set("radius", radiusMi);
+    store.set("lastLocation", { lat, lon, placeLabel });
+    const meters = Math.round(radiusMi * 1609.34);
+    statusEl.textContent = `Searching within ${radiusMi} mi of ${placeLabel}…`;
+    storesEl.innerHTML = "";
+    const groups = groupsInUse();
+    if (!groups.length) { statusEl.textContent = "Pick at least one store type to search."; lastResults = []; storesEl.innerHTML = ""; return; }
+    const around = `(around:${meters},${lat},${lon})`;
+    const brands = groups.flatMap(g => g.brands || []);
+    const shops = groups.flatMap(g => g.shops || []);
+    const parts = [];
+    if (brands.length) {
+      const rx = "^(" + brands.join("|") + ")";
+      parts.push(`nwr["shop"]["brand"~"${rx}",i]${around};`, `nwr["shop"]["name"~"${rx}",i]${around};`);
+    }
+    if (shops.length) parts.push(`nwr["shop"~"^(${shops.join("|")})$"]${around};`);
+    groups.filter(g => g.custom).forEach(g => {
+      const rx = reEsc(g.custom);
+      parts.push(`nwr["shop"]["name"~"${rx}",i]${around};`, `nwr["shop"]["brand"~"${rx}",i]${around};`, `nwr["shop"~"${rx}",i]${around};`);
+    });
+    const query = `[out:json][timeout:40];(${parts.join("")});out center tags 600;`;
+    try {
+      const res = await fetch(OVERPASS, { method: "POST", body: "data=" + encodeURIComponent(query),
+        headers: { "Content-Type": "application/x-www-form-urlencoded" } });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      const seen = new Set();
+      lastResults = data.elements.map(el => {
+        const t = el.tags || {};
+        const sLat = el.lat ?? el.center?.lat, sLon = el.lon ?? el.center?.lon;
+        if (sLat == null || sLon == null) return null;
+        const type = classify(t);
+        if (!type) return null;
+        const key = (t.name || type.label) + "|" + sLat.toFixed(3) + "|" + sLon.toFixed(3);
+        if (seen.has(key)) return null;
+        seen.add(key);
+        const addr = [[t["addr:housenumber"], t["addr:street"]].filter(Boolean).join(" "), t["addr:city"]]
+          .filter(Boolean).join(", ");
+        return { id: el.type + "/" + el.id, name: t.name || type.label, type, lat: sLat, lon: sLon, addr,
+                 phone: t.phone || t["contact:phone"] || "", hours: t.opening_hours || "",
+                 dist: miles(lat, lon, sLat, sLon) };
+      }).filter(Boolean).sort((a, b) => a.dist - b.dist);
+      statusEl.textContent = `${lastResults.length} stores within ${radiusMi} mi of ${placeLabel}. Store data © OpenStreetMap contributors.`;
+      renderStores();
+    } catch (err) {
+      statusEl.textContent = "Couldn't reach the store search (" + err.message + "). Try again in a minute, or use a smaller radius.";
+    }
+  }
+
+  /* ---------------- Restock info ----------------
+     Saved to store-notes.json through server.py when the dashboard is opened
+     with start-tracker.bat; falls back to this browser's storage otherwise. */
+  const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const TIMES = ["", "Early morning", "Morning", "Midday", "Afternoon", "Evening", "Overnight", "Varies"];
+  const SOURCES = ["", "Staff told me", "My own sightings", "Community (Discord, Reddit)", "My best guess"];
+  const likelyToday = n => !!(n && n.days?.includes(new Date().getDay()));
+  const viaServer = location.protocol.startsWith("http");
+  let notes = {};
+  let openEditor = null;
+
+  async function loadNotes() {
+    if (viaServer) {
+      try {
+        const r = await fetch("store-notes.json?t=" + Date.now());
+        if (r.ok) { notes = await r.json(); return; }
+        if (r.status === 404) { notes = {}; return; }
+      } catch {}
+    }
+    notes = store.get("storeNotes") || {};
+  }
+
+  async function saveNotes() {
+    store.set("storeNotes", notes);  // local backup either way
+    if (!viaServer) return "browser";
+    try {
+      const r = await fetch("api/store-notes", { method: "POST", body: JSON.stringify(notes),
+        headers: { "Content-Type": "application/json" } });
+      return r.ok ? "file" : "browser";
+    } catch { return "browser"; }
+  }
+
+  const todayISO = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+  const shortDate = iso => new Date(iso + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+
+  function nextRestock(days) {
+    if (!days || !days.length) return null;
+    const today = new Date().getDay();
+    for (let i = 0; i < 7; i++) {
+      const d = (today + i) % 7;
+      if (days.includes(d)) return { day: DAYS[d], inDays: i };
+    }
+    return null;
+  }
+
+  function restockSummary(n) {
+    if (!n || (!n.days?.length && !n.lastSeen && !n.notes && !n.what)) return '<div class="restock"><span class="none">No restock schedule yet</span></div>';
+    const parts = [];
+    if (n.what) parts.push(`<b>${esc(n.what)}</b>`);
+    if (n.days?.length) {
+      const nx = nextRestock(n.days);
+      const when = nx.inDays === 0 ? "today" : nx.inDays === 1 ? "tomorrow" : `${nx.day} (${nx.inDays} days)`;
+      parts.push(`restocks ${n.days.map(d => DAYS[d]).join(", ")}${n.time ? " · " + esc(n.time.toLowerCase()) : ""}`);
+      parts.push(`next <b>${when}</b>`);
+    }
+    if (n.lastSeen) parts.push(`last seen ${shortDate(n.lastSeen)}`);
+    let html = `<div class="restock">${parts.join(" · ")}</div>`;
+    const sub = [n.source ? "Source: " + n.source : "", n.notes || ""].filter(Boolean).join(" · ");
+    if (sub) html += `<div class="sub">${esc(sub)}</div>`;
+    return html;
+  }
+
+  function storeRow(s, showDist) {
+    const n = notes[s.id];
+    const coords = `${s.lat.toFixed(6)}, ${s.lon.toFixed(6)}`;
+    const dir = `https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lon}`;
+    const editing = openEditor === s.id;
+    return `
+      <div class="row store ${likelyToday(n) ? "hot" : ""}" data-id="${esc(s.id)}">
+        <div class="main">
+          <div class="title"><a href="${dir}" target="_blank" rel="noopener">${esc(s.name)}</a>
+            <span class="tag">${esc(s.typeLabel || s.type?.label || "")}</span>${likelyToday(n) ? '<span class="today">Likely restock today</span>' : ""}</div>
+          <div class="sub">${s.addr ? esc(s.addr) + " · " : ""}<span class="coords">${coords}</span>
+            <button class="copy" data-coords="${coords}">Copy</button></div>
+          ${s.hours ? `<div class="sub">${esc(s.hours)}</div>` : ""}
+          ${restockSummary(n)}
+        </div>
+        <div class="side">
+          ${showDist && s.dist != null ? `<span class="dist">${s.dist.toFixed(1)} mi</span>` : ""}
+          <button class="editbtn" data-act="edit">${editing ? "Close" : n ? "Edit restock schedule" : "Add restock schedule"}</button>
+        </div>
+        ${editing ? editorHtml(n || {}) : ""}
+      </div>`;
+  }
+
+  function editorHtml(n) {
+    const history = (n.history || []).slice(-5).reverse();
+    return `
+      <div class="editor">
+        <div><div class="lbl">What restocks here (e.g. Pokémon cards, sneakers, consoles)</div>
+          <input type="text" name="what" value="${esc(n.what || "")}" style="width:100%"></div>
+        <div><div class="lbl">Restock days</div>
+          <div class="days">${DAYS.map((d, i) =>
+            `<label><input type="checkbox" name="day" value="${i}" ${n.days?.includes(i) ? "checked" : ""}>${d}</label>`).join("")}</div></div>
+        <div class="line">
+          <div><div class="lbl">Usual time</div>
+            <select name="time">${TIMES.map(t => `<option value="${t}" ${n.time === t ? "selected" : ""}>${t || "—"}</option>`).join("")}</select></div>
+          <div><div class="lbl">Last restock seen</div>
+            <input type="date" name="lastSeen" value="${esc(n.lastSeen || "")}"></div>
+          <div><div class="lbl">Where this info came from</div>
+            <select name="source">${SOURCES.map(t => `<option value="${t}" ${n.source === t ? "selected" : ""}>${t || "—"}</option>`).join("")}</select></div>
+        </div>
+        <div><div class="lbl">Notes (truck or vendor day, aisle, purchase limits, who to ask…)</div>
+          <textarea name="notes">${esc(n.notes || "")}</textarea></div>
+        ${history.length ? `<div class="history">Recent restocks: ${history.map(shortDate).join(", ")}</div>` : ""}
+        <div class="line">
+          <button class="primary" data-act="save">Save</button>
+          <button data-act="sawToday">Saw a restock today</button>
+          ${n.days || n.lastSeen || n.notes || n.what ? `<button data-act="clear">Remove</button>` : ""}
+        </div>
+      </div>`;
+  }
+
+  function renderStores() {
+    renderMyStores();
+    if (!lastResults.length) return;
+    const list = lastResults;
+    if (!list.length) { storesEl.innerHTML = '<div class="empty">No stores of the selected types in range. Try a bigger radius.</div>'; return; }
+    storesEl.innerHTML = list.slice(0, 40).map(s => storeRow(s, true)).join("");
+  }
+
+  function renderMyStores() {
+    const el = document.getElementById("myStores");
+    const last = store.get("lastLocation");
+    const mine = Object.entries(notes).map(([id, n]) => ({
+      id, name: n.name, typeLabel: n.typeLabel, lat: n.lat, lon: n.lon, addr: n.addr, hours: n.hours,
+      dist: last ? miles(last.lat, last.lon, n.lat, n.lon) : null,
+      next: nextRestock(n.days)?.inDays ?? 99, what: n.what || "",
+    })).sort((a, b) => a.next - b.next || (a.dist ?? 0) - (b.dist ?? 0));
+    el.innerHTML = mine.length ? mine.map(s => storeRow(s, true)).join("")
+      : '<div class="empty">Stores you add a restock schedule to show up here, soonest restock first. Stores likely to restock today are highlighted.</div>';
+  }
+
+  function findStore(id) {
+    const r = lastResults.find(s => s.id === id);
+    if (r) return r;
+    const n = notes[id];
+    return n ? { id, name: n.name, typeLabel: n.typeLabel, lat: n.lat, lon: n.lon, addr: n.addr, hours: n.hours } : null;
+  }
+
+  async function persist(msg) {
+    const where = await saveNotes();
+    statusEl.textContent = where === "file" ? msg + " Saved to store-notes.json."
+      : msg + " Saved in this browser (open the dashboard with start-tracker.bat to save to a file).";
+  }
+
+  document.querySelector("main").addEventListener("click", async e => {
+    const copy = e.target.closest(".copy");
+    if (copy) {
+      navigator.clipboard?.writeText(copy.dataset.coords).then(() => {
+        copy.textContent = "Copied"; setTimeout(() => copy.textContent = "Copy", 1500);
+      }).catch(() => {});
+      return;
+    }
+    const btn = e.target.closest("button[data-act]");
+    if (!btn) return;
+    const row = btn.closest(".row.store");
+    const id = row.dataset.id;
+    const s = findStore(id);
+    const act = btn.dataset.act;
+    if (act === "edit") { openEditor = openEditor === id ? null : id; renderStores(); return; }
+    if (act === "clear") {
+      delete notes[id]; openEditor = null; renderStores();
+      await persist(`Removed the restock schedule for ${s.name}.`);
+      return;
+    }
+    const prev = notes[id] || {};
+    const n = {
+      name: s.name, typeLabel: s.typeLabel || s.type?.label || "", lat: s.lat, lon: s.lon,
+      addr: s.addr || "", hours: s.hours || "",
+      days: [...row.querySelectorAll('input[name=day]:checked')].map(i => Number(i.value)),
+      time: row.querySelector('select[name=time]').value,
+      lastSeen: row.querySelector('input[name=lastSeen]').value,
+      notes: row.querySelector('textarea[name=notes]').value.trim(),
+      what: row.querySelector('input[name=what]').value.trim(),
+      source: row.querySelector('select[name=source]').value,
+      history: prev.history || [],
+    };
+    if (act === "sawToday") n.lastSeen = todayISO();
+    if (n.lastSeen && !n.history.includes(n.lastSeen)) n.history = [...n.history, n.lastSeen].sort().slice(-30);
+    notes[id] = n;
+    openEditor = null;
+    renderStores();
+    await persist(act === "sawToday" ? `Logged a restock at ${s.name} today.` : `Saved the restock schedule for ${s.name}.`);
+  });
+
+  loadNotes().then(() => { renderMyStores(); renderTrends(); });
+
+  /* ---------------- Stock trends ----------------
+     Built from history.js, which checker.py rewrites after every check.
+     Status segments: [startSec, endSec, status]. Time between segments
+     longer than the gap limit = untracked (PC off or checker stopped). */
+  const AVAIL = new Set(["in_stock", "preorder"]);
+  const TL_COLOR = { in_stock: "var(--tl-in)", preorder: "var(--tl-pre)", out_of_stock: "var(--tl-out)", noread: "var(--tl-unk)" };
+  const TL_LABEL = { in_stock: "In stock", preorder: "Pre-order", out_of_stock: "Out of stock", noread: "Couldn't read the page" };
+  const tlKind = s => (s in TL_COLOR ? s : "noread");
+  const BLOCKS = [["12a–4a", 0], ["4a–8a", 4], ["8a–12p", 8], ["12p–4p", 12], ["4p–8p", 16], ["8p–12a", 20]];
+  let trendDays = store.get("trendDays") || 7;
+
+  document.getElementById("trendLegend").innerHTML =
+    [["In stock", "in_stock"], ["Pre-order", "preorder"], ["Out of stock", "out_of_stock"],
+     ["Couldn't read (blocked or unclear)", "noread"]]
+      .map(([l, k]) => `<span><i style="background:${TL_COLOR[k]}"></i>${l}</span>`).join("") +
+    '<span><i class="gap"></i>Not tracked (PC off)</span>';
+
+  document.getElementById("trendRange").addEventListener("click", e => {
+    const b = e.target.closest("button[data-days]");
+    if (!b) return;
+    trendDays = Number(b.dataset.days);
+    store.set("trendDays", trendDays);
+    renderTrends();
+  });
+
+  const fmtDur = sec => {
+    const m = Math.round(sec / 60);
+    if (m < 60) return m + " min";
+    const h = m / 60;
+    return h < 48 ? (Math.round(h * 10) / 10) + " hr" : (Math.round(h / 2.4) / 10) + " days";
+  };
+  const fmtWhen = sec => new Date(sec * 1000).toLocaleString(undefined,
+    { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  const median = a => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y), m = s.length >> 1;
+    return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+
+  function analyze(p, from, to) {
+    const segs = p.segments.map(([a, b, s]) => [Math.max(a, from), Math.min(b, to), s, a, b])
+                           .filter(s => s[1] >= s[0] && s[4] >= from && s[3] <= to);
+    let tracked = 0, avail = 0;
+    const restocks = [], sellouts = [];
+    p.segments.forEach(([a, b, s], i) => {
+      const prev = p.segments[i - 1], next = p.segments[i + 1];
+      if (AVAIL.has(s) && prev && prev[1] === a && !AVAIL.has(prev[2]) && a >= from && a <= to) restocks.push(a);
+      if (AVAIL.has(s) && next && next[0] === b && next[2] === "out_of_stock" && b >= from && b <= to) sellouts.push(b - a);
+    });
+    segs.forEach(([a, b, s]) => { tracked += b - a; if (AVAIL.has(s)) avail += b - a; });
+    return { segs, tracked, avail, restocks, sellouts };
+  }
+
+  function strip(segs, from, to) {
+    const W = 700, H = 30, X = t => (t - from) / (to - from) * W;
+    const days = Math.round((to - from) / 86400);
+    const ticks = [];
+    // Step by calendar day, not by 86400 s, so daylight-saving days don't repeat or skip.
+    const d0 = new Date(from * 1000); d0.setHours(0, 0, 0, 0);
+    for (d0.setDate(d0.getDate() + 1); d0.getTime() / 1000 < to; d0.setDate(d0.getDate() + 1)) ticks.push(d0.getTime() / 1000);
+    const every = days > 10 ? 7 : 1;
+    const merged = [];
+    segs.forEach(([a, b, s]) => {
+      const k = tlKind(s), m = merged.at(-1);
+      if (m && m[2] === k && m[1] === a) m[1] = b; else merged.push([a, b, k]);
+    });
+    const bars = merged.map(([a, b, k]) => {
+      const x = X(a), w = Math.max(X(b) - x, 1.5);
+      const label = `${TL_LABEL[k]}: ${fmtWhen(a)} – ${fmtWhen(b)}`;
+      return `<rect x="${x.toFixed(1)}" y="2" width="${w.toFixed(1)}" height="16" rx="2" fill="${TL_COLOR[k]}"><title>${esc(label)}</title></rect>`;
+    }).join("");
+    const grid = ticks.map((t, i) => `<line x1="${X(t).toFixed(1)}" x2="${X(t).toFixed(1)}" y1="0" y2="20" stroke="var(--line)" stroke-width="1"/>` +
+      ((i % every === 0) ? `<text x="${(X(t) + 3).toFixed(1)}" y="29" font-size="9.5" fill="var(--muted)">${new Date(t * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</text>` : "")).join("");
+    return `<svg class="strip" viewBox="0 0 ${W} ${H}" role="img" aria-label="Stock status over the last ${days} days">
+      <rect x="0" y="2" width="${W}" height="16" rx="2" fill="none" stroke="var(--line)" stroke-dasharray="3 3"/>${grid}${bars}</svg>`;
+  }
+
+  function renderTrends() {
+    document.querySelectorAll("#trendRange button").forEach(b => b.classList.toggle("on", Number(b.dataset.days) === trendDays));
+    const el = document.getElementById("trends");
+    const H = window.HISTORY;
+    const heatCard = document.getElementById("heatCard");
+    const hp = (H?.products || []).filter(catOk);
+    if (!hp.length) {
+      el.innerHTML = '<div class="empty">Trends appear after the checker has run for a while. Every check is saved to <b>history.csv</b>; leave start-tracker.bat running and patterns show up within a few days.</div>';
+      heatCard.hidden = true;
+      return;
+    }
+    const to = Math.floor(Date.now() / 1000), from = to - trendDays * 86400;
+    const heat = BLOCKS.map(() => Array(7).fill(0));
+    let totalRestocks = 0;
+    const rows = hp.map(p => {
+      const a = analyze(p, from, to);
+      a.restocks.forEach(t => { const d = new Date(t * 1000); heat[Math.floor(d.getHours() / 4)][d.getDay()]++; });
+      totalRestocks += a.restocks.length;
+      const pct = a.tracked ? Math.round(a.avail / a.tracked * 100) : null;
+      const sell = median(a.sellouts);
+      const last = a.restocks.at(-1);
+      let usual = "";
+      if (a.restocks.length >= 2) {
+        const byDay = Array(7).fill(0), byBlock = Array(6).fill(0);
+        a.restocks.forEach(t => { const d = new Date(t * 1000); byDay[d.getDay()]++; byBlock[Math.floor(d.getHours() / 4)]++; });
+        const topD = Math.max(...byDay), topB = Math.max(...byBlock);
+        const days = DAYS.filter((_, i) => byDay[i] === topD).join(", ");
+        const blocks = BLOCKS.filter((_, i) => byBlock[i] === topB).map(b => b[0]).join(" or ");
+        usual = `${days} · ${blocks}`;
+      }
+      return { p, a, html: `
+        <div class="row trend">
+          <div class="title">${esc(p.name)}${p.variant ? `<span class="tag">${esc(p.variant)}</span>` : ""}${p.retailer ? `<span class="tag">${esc(p.retailer)}</span>` : ""}${p.watching === false ? '<span class="tag">no longer watched</span>' : ""}</div>
+          ${strip(a.segs, from, to)}
+          <div class="stats">
+            <div><b>${pct === null ? "—" : pct + "%"}</b> <span>of tracked time in stock</span></div>
+            <div><b>${a.restocks.length}</b> <span>restock${a.restocks.length === 1 ? "" : "s"}</span></div>
+            <div><b>${sell === null ? "—" : fmtDur(sell)}</b> <span>typical time before selling out</span></div>
+            <div><b>${last ? esc(fmtWhen(last)) : "—"}</b> <span>last restock</span></div>
+            ${usual ? `<div><b>${esc(usual)}</b> <span>most common restock time</span></div>` : ""}
+            <div><b>${fmtDur(a.tracked)}</b> <span>tracked of ${trendDays} days</span></div>
+          </div>
+        </div>` };
+    }).sort((x, y) => y.a.restocks.length - x.a.restocks.length || y.a.avail - x.a.avail);
+    el.innerHTML = rows.map(r => r.html).join("");
+
+    // Heatmap: online restocks by weekday × time of day, plus in-store restocks you logged.
+    const inStore = Array(7).fill(0);
+    Object.values(notes || {}).forEach(n => (n.history || []).forEach(d => {
+      const t = new Date(d + "T12:00:00");
+      if (t.getTime() / 1000 >= from) inStore[t.getDay()]++;
+    }));
+    const inStoreTotal = inStore.reduce((s, v) => s + v, 0);
+    if (!totalRestocks && !inStoreTotal) { heatCard.hidden = true; return; }
+    heatCard.hidden = false;
+    const max = Math.max(1, ...heat.flat(), ...inStore);
+    const cell = (v, label) => {
+      const lvl = v === 0 ? 0 : Math.min(4, Math.ceil(v / max * 4));
+      const bg = lvl ? `var(--h${lvl})` : "var(--line)";
+      const ink = lvl === 4 ? "var(--h4ink)" : "var(--ink)";
+      return `<td style="background:${bg};color:${ink}" title="${esc(label)}">${v || ""}</td>`;
+    };
+    document.getElementById("heatSub").textContent =
+      `${totalRestocks} online restock${totalRestocks === 1 ? "" : "s"} caught by the checker` +
+      (inStoreTotal ? ` and ${inStoreTotal} in-store restock${inStoreTotal === 1 ? "" : "s"} you logged` : "") +
+      ` in the last ${trendDays} days. Darker = more restocks.`;
+    document.getElementById("heat").innerHTML = `<table class="heat">
+      <tr><th></th>${DAYS.map(d => `<th>${d}</th>`).join("")}</tr>
+      ${BLOCKS.map(([lbl], r) => `<tr><th class="rowh">${lbl}</th>${heat[r].map((v, d) => cell(v, `${v} online restock${v === 1 ? "" : "s"}, ${DAYS[d]} ${lbl}`)).join("")}</tr>`).join("")}
+      ${inStoreTotal ? `<tr class="instore"><th class="rowh">In store</th>${inStore.map((v, d) => cell(v, `${v} in-store restock${v === 1 ? "" : "s"} logged on ${DAYS[d]}`)).join("")}</tr>` : ""}
+    </table>`;
+  }
+
+  document.getElementById("useLocation").addEventListener("click", () => {
+    if (!navigator.geolocation) { statusEl.textContent = "This browser can't share location. Enter a ZIP code instead."; return; }
+    statusEl.textContent = "Getting your location…";
+    navigator.geolocation.getCurrentPosition(
+      p => findStores(p.coords.latitude, p.coords.longitude, "your location"),
+      err => { statusEl.textContent = "Location unavailable (" + err.message + "). Enter a ZIP code instead."; },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 300000 });
+  });
+
+  async function searchPlace() {
+    const q = document.getElementById("zip").value.trim();
+    if (!q) return;
+    store.set("zip", q);
+    statusEl.textContent = "Looking up " + q + "…";
+    try {
+      const res = await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=" + encodeURIComponent(q));
+      const hits = await res.json();
+      if (!hits.length) { statusEl.textContent = "Couldn't find " + q + ". Try a ZIP code."; return; }
+      findStores(Number(hits[0].lat), Number(hits[0].lon), q);
+    } catch (err) {
+      statusEl.textContent = "Couldn't look up that place (" + err.message + ").";
+    }
+  }
+  document.getElementById("searchZip").addEventListener("click", searchPlace);
+  document.getElementById("zip").addEventListener("keydown", e => { if (e.key === "Enter") searchPlace(); });
+  document.getElementById("radius").addEventListener("change", research);
+</script>
+</body>
+</html>

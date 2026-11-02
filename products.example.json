@@ -1,0 +1,31 @@
+{
+  "check_every_minutes": 10,
+  "ntfy_topic": "",
+  "products": [
+    {
+      "name": "Delta Reign Elite Trainer Box",
+      "retailer": "Best Buy",
+      "category": "Pokémon TCG",
+      "url": "https://www.bestbuy.com/site/6689672.p"
+    },
+    {
+      "name": "Delta Reign Booster Bundle",
+      "retailer": "Miniature Market",
+      "category": "Pokémon TCG",
+      "url": "https://www.miniaturemarket.com/Pokemon-TCG-Delta-Reign-Booster-Bundle-Preorder/PKU10439"
+    },
+    {
+      "name": "Example sneaker in my size (replace the URL)",
+      "retailer": "Sneaker shop",
+      "category": "Sneakers",
+      "variant": "10.5",
+      "url": "https://example-sneaker-shop.com/products/example-shoe"
+    },
+    {
+      "name": "Example console (replace the URL)",
+      "retailer": "Any store",
+      "category": "Electronics",
+      "url": "https://www.example.com/console-product-page"
+    }
+  ]
+}

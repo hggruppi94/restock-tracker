@@ -1,0 +1,7 @@
+# Personal data the tracker creates while running
+status.js
+history.csv
+history.js
+store-notes.json
+store-notes.tmp
+__pycache__/
