@@ -5,7 +5,11 @@ A small local tracker for any product (trading cards, sneakers, consoles, anythi
 - **Stock watch**: checks the product pages you choose every few minutes and shows in stock / out of stock (`checker.py`).
 - **Stock trends**: a history of every check, with restock patterns.
 - **Stores near me**: nearby stores of any type, with GPS coordinates and a restock schedule for each.
-- **Upcoming drops**: release dates for anything you're waiting on (`releases.js`).
+- **Upcoming drops**: release dates for anything you're waiting on (`releases.js`), with a countdown,
+  prep checklist and phone reminder for timed online drops.
+- **One-tap cart**: on Shopify stores, a button (and the phone alert) that opens checkout with the item already in your cart.
+- **Raffles & queues**: entry windows for raffles, draws and online queues (`raffles.js`), with reminders until you tick Entered.
+- **Flip calculator**: recent eBay *sold* prices and your profit after tax, fees and shipping.
 
 ## Files
 
@@ -15,7 +19,10 @@ A small local tracker for any product (trading cards, sneakers, consoles, anythi
 | `products.json` | The products to watch, the check interval, and an optional notification topic. |
 | `products.example.json` | An example showing categories and size/variant watching. |
 | `checker.py` | Checks each product and writes `status.js`, `history.csv` and `history.js`. |
-| `releases.js` | Upcoming drops. Add any product's release dates. |
+| `releases.js` | Upcoming drops. Add any product's release dates, plus an optional time and links for online drops. |
+| `raffles.js` | Raffles, draws and queues to enter. |
+| `state.json` | What you tick on the dashboard (drop checklists, raffles entered, saved flips). Created by `server.py`. |
+| `reminders.json` | Reminders already sent, so each one goes out once. Created by `checker.py`. |
 | `start-tracker.bat` | Double-click to open the dashboard and start checking. |
 | `server.py` | Serves the dashboard at http://localhost:8765 and saves store schedules. Started by the .bat file. |
 | `store-notes.json` | Your store restock schedules. Created the first time you save one. Back it up. |
@@ -69,11 +76,42 @@ Stores don't publish restock schedules. What works best, in order:
 2. Put your products in `products.json` (see `products.example.json`).
 3. Double-click `start-tracker.bat`. Leave the windows open; close them to stop.
 
+## Timed drops, raffles and queues
+
+Give a drop in `releases.js` a `time` (24-hour, your PC's time zone), a `retailer` and `links`:
+
+```js
+{ name: "ETB restock", category: "Pokémon TCG", date: "2026-12-05", time: "10:00", retailer: "Pokémon Center",
+  status: "confirmed", links: [{ label: "Pokémon Center", url: "https://www.pokemoncenter.com/..." }] },
+```
+
+It appears under **Next drop** for the week before, with a live countdown and a checklist (signed in, payment
+saved, address saved, links open, phone alerts on). Your phone gets a reminder about 30–45 minutes before.
+
+`raffles.js` works the same way with `opens` and `closes` times. You get a phone alert when entry opens and
+3 hours before it closes, until you tick **Entered** on the dashboard.
+
+## One-tap cart
+
+On Shopify stores the checker records the exact in-stock option. When it's in stock, the dashboard shows
+**⚡ One-tap cart**, and the restock alert on your phone opens checkout with one already in the cart. You still
+review and place the order yourself. Set `variant` for anything with sizes or colors; without it the button
+only appears for single-option products, so it can never add the wrong size.
+
+## Flip calculator
+
+Type a product (or click **Flip check** on any product, drop or raffle) and click **Look up eBay sold prices**.
+It takes the median of recent *sold* listings, skips junk like empty boxes, and shows your profit after sales tax,
+eBay fees and shipping, your return, and the break-even sale price. If eBay blocks the lookup, use
+**Open sold listings** and type the price. Fees vary by category and change; adjust them to eBay's current rates.
+
 ## Phone alerts (optional, free)
 
 1. Install the **ntfy** app on your phone.
 2. Subscribe to a hard-to-guess topic name, e.g. `restock-alerts-7f3k2`.
 3. Put that same name in `"ntfy_topic"` in `products.json`.
+
+You'll get restock alerts, drop reminders and raffle reminders there. Alerts only go out while `start-tracker.bat` is running.
 
 ## What to expect
 

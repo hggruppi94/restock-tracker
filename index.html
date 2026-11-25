@@ -105,6 +105,30 @@
   @media (prefers-color-scheme: dark) {
     :root { --h1: #1c3527; --h2: #23573a; --h3: #2f8456; --h4: #3fbf74; --h4ink: #0d1f15; --tl-in: #3fbf74; --tl-pre: #e0a43a; --tl-out: #4a4a52; --tl-bad: #ff6b5e; --tl-unk: #7a7890; }
   }
+  .btn { display: inline-block; font: inherit; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 6px;
+         border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; text-decoration: none; white-space: nowrap; }
+  .btn.go { background: var(--green); border-color: var(--green); color: #fff; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .price { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .next { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; flex-wrap: wrap; }
+  .next .big { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .checklist { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .checklist label { font-size: 13px; border: 1px solid var(--line); border-radius: 6px; padding: 4px 9px; cursor: pointer; }
+  .checklist input { margin: 0 5px 0 0; vertical-align: -1px; }
+  .checklist label:has(input:checked) { border-color: var(--green); color: var(--green); }
+  .raffle.entered { opacity: .6; }
+  .open_now { color: var(--green); } .upcoming { color: var(--amber); } .closed { color: var(--gray); }
+  .flip { display: grid; gap: 12px; }
+  .flip .fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .flip label { font-size: 12px; color: var(--muted); display: grid; gap: 4px; }
+  .flip input { font: inherit; font-size: 14px; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line);
+                background: var(--card); color: var(--ink); width: 100%; }
+  .flip .q { display: flex; gap: 8px; flex-wrap: wrap; }
+  .flip .q input { flex: 1; min-width: 220px; }
+  .verdict { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .verdict.good { color: var(--green); } .verdict.meh { color: var(--amber); } .verdict.bad { color: var(--red); }
+  .comps { font-size: 12px; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -115,8 +139,17 @@
   </header>
   <div class="chips cats" id="catFilter" role="group" aria-label="Category"></div>
 
+  <div id="nextDropWrap" hidden>
+    <h2>Next drop</h2>
+    <div class="grid" id="nextDrop"></div>
+  </div>
+
   <h2>Stock watch</h2>
   <div class="grid" id="stock"></div>
+
+  <h2>Raffles &amp; queues</h2>
+  <div class="grid" id="raffles"></div>
+  <p class="meta" id="rafflesUpdated"></p>
 
   <h2>Stock trends</h2>
   <div class="controls">
@@ -162,9 +195,36 @@
   <h2>Upcoming drops</h2>
   <div class="grid" id="releases"></div>
   <p class="meta" id="releasesUpdated"></p>
+
+  <h2 id="flipHead">Flip calculator</h2>
+  <div class="row flip">
+    <div class="q">
+      <input id="flipQuery" placeholder="Product to price, e.g. Delta Reign Elite Trainer Box">
+      <button class="btn primary" id="flipLookup">Look up eBay sold prices</button>
+      <a class="btn" id="flipOpen" target="_blank" rel="noopener" href="#">Open sold listings</a>
+    </div>
+    <p class="comps" id="flipComps">Uses eBay listings that actually sold, not asking prices.</p>
+    <div class="fields">
+      <label>You pay (each) $<input id="fBuy" type="number" min="0" step="0.01" inputmode="decimal"></label>
+      <label>Sells for $<input id="fSell" type="number" min="0" step="0.01" inputmode="decimal"></label>
+      <label>Sales tax %<input id="fTax" type="number" min="0" step="0.01"></label>
+      <label>eBay fee %<input id="fFee" type="number" min="0" step="0.01"></label>
+      <label>Per-order fee $<input id="fOrder" type="number" min="0" step="0.01"></label>
+      <label>Shipping you pay $<input id="fShip" type="number" min="0" step="0.01"></label>
+      <label>How many<input id="fQty" type="number" min="1" step="1" value="1"></label>
+    </div>
+    <div class="line" style="display:flex;gap:14px;align-items:baseline;flex-wrap:wrap">
+      <span class="verdict" id="fProfit">—</span>
+      <span class="meta" id="fDetail">Enter what you pay and what it sells for.</span>
+    </div>
+    <div class="acts"><button class="btn" id="flipSave">Save to my flips</button></div>
+    <p class="comps">Fees vary by category and change over time; check eBay's current fee page and adjust. Profit from reselling is taxable income.</p>
+    <div class="grid" id="flipSaved"></div>
+  </div>
 </main>
 
 <script src="releases.js"></script>
+<script src="raffles.js" onerror="window.RAFFLES = []"></script>
 <script src="status.js" onerror="window.STATUS = null"></script>
 <script src="history.js" onerror="window.HISTORY = null"></script>
 <script>
@@ -188,6 +248,7 @@
     (window.STATUS?.products || []).forEach(p => all.add(catOf(p)));
     (window.HISTORY?.products || []).forEach(p => all.add(catOf(p)));
     (window.RELEASES || []).forEach(p => all.add(catOf(p)));
+    (window.RAFFLES || []).forEach(p => all.add(catOf(p)));
     const cats = [...all].sort((a, b) => a.localeCompare(b));
     if (catSel !== "All" && !all.has(catSel)) catSel = "All";
     const el = document.getElementById("catFilter");
@@ -229,7 +290,11 @@
             ${p.variant ? `<span class="tag">${esc(p.variant)}</span>` : ""}
             ${p.retailer ? `<span class="tag">${esc(p.retailer)}</span>` : ""}
             ${catSel === "All" && p.category ? `<span class="tag">${esc(p.category)}</span>` : ""}</div>
-          <div class="sub">Status since ${ago(p.last_change)} · checked ${ago(p.checked)} · ${esc(p.detail)}</div>
+          <div class="sub">${p.price ? `<span class="price">$${Number(p.price).toFixed(2)}</span> · ` : ""}Status since ${ago(p.last_change)} · checked ${ago(p.checked)} · ${esc(p.detail)}</div>
+          <div class="acts">
+            ${p.cart_url && (p.status === "in_stock" || p.status === "preorder") ? `<a class="btn go" href="${esc(p.cart_url)}" target="_blank" rel="noopener" title="Opens checkout with one already in your cart">⚡ One-tap cart</a>` : ""}
+            <button class="btn" data-flip="${esc(p.name)}" data-buy="${p.price || ""}">Flip check</button>
+          </div>
         </div>
         <span class="pill ${esc(p.status)}">${LABELS[p.status] || esc(p.status)}</span>
       </div>`).join("");
@@ -255,7 +320,8 @@
       <div class="row">
         <div class="main">
           <div class="title">${esc(r.name)}${r.region ? `<span class="tag">${esc(r.region)}</span>` : ""}${catSel === "All" ? `<span class="tag">${esc(catOf(r))}</span>` : ""}</div>
-          <div class="sub">${esc(when)}${r.type ? " · " + esc(r.type) : ""}${r.note ? " · " + esc(r.note) : ""}</div>
+          <div class="sub">${esc(when)}${r.time ? " · " + esc(fmtTime(r.time)) : ""}${r.type ? " · " + esc(r.type) : ""}${r.note ? " · " + esc(r.note) : ""}</div>
+          ${r.days !== null && r.days < 0 ? "" : `<div class="acts">${linksHtml(r.links)}<button class="btn" data-flip="${esc(r.name)}">Flip check</button></div>`}
         </div>
         <span class="pill ${esc(cls)}">${esc(r.status)}</span>
         <span class="countdown">${cd}</span>
@@ -264,6 +330,11 @@
     if (window.RELEASES_UPDATED)
       document.getElementById("releasesUpdated").textContent = "Calendar last edited " + window.RELEASES_UPDATED + ". Add any product's release dates to releases.js.";
   }
+
+  const fmtTime = t => { const [h, m] = String(t).split(":").map(Number); const d = new Date(); d.setHours(h, m || 0, 0, 0);
+    return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }); };
+  const linksHtml = links => (Array.isArray(links) ? links : []).filter(l => l && l.url)
+    .map(l => `<a class="btn" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label || "Open")}</a>`).join("");
 
   renderCats();
   renderStock();
@@ -793,6 +864,184 @@
   document.getElementById("searchZip").addEventListener("click", searchPlace);
   document.getElementById("zip").addEventListener("keydown", e => { if (e.key === "Enter") searchPlace(); });
   document.getElementById("radius").addEventListener("change", research);
+</script>
+<script>
+  /* ---------------- Dashboard state (state.json) ----------------
+     Drop checklists, raffles you entered and saved flips. Saved to state.json by
+     server.py so the checker can skip reminders for raffles you already entered. */
+  let STATE = { checklist: {}, entered: {}, flips: [] };
+  async function loadState() {
+    let s = null;
+    if (viaServer) {
+      try { const r = await fetch("state.json?t=" + Date.now()); if (r.ok) s = await r.json(); } catch {}
+    }
+    s = s || store.get("trackerState") || {};
+    STATE = { checklist: s.checklist || {}, entered: s.entered || {}, flips: s.flips || [] };
+  }
+  async function saveState() {
+    store.set("trackerState", STATE);
+    if (!viaServer) return;
+    try { await fetch("api/state", { method: "POST", body: JSON.stringify(STATE), headers: { "Content-Type": "application/json" } }); } catch {}
+  }
+  // Same keys the checker uses (checker.py drop_key / raffle_key)
+  const dropKey = r => "drop:" + (r.name || "") + "|" + (r.date || "");
+  const raffleKey = r => "raffle:" + (r.id || ((r.name || "") + "|" + (r.retailer || "")));
+  const parseLocal = (d, t) => { if (!d) return null; const x = new Date(String(d).includes("T") ? d : t ? d + "T" + t : NaN); return isNaN(x) ? null : x; };
+  const left = ms => {
+    if (ms <= 0) return "Live";
+    const m = Math.floor(ms / 60000), d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mm = m % 60;
+    return d ? `${d}d ${h}h` : h ? `${h}h ${String(mm).padStart(2, "0")}m` : `${mm}m`;
+  };
+  const whenStr = d => d.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+
+  /* ---------------- Next drop: countdown + prep checklist ---------------- */
+  const PREP = [["signin", "Signed in"], ["payment", "Payment saved"], ["address", "Address saved"], ["links", "Links open"], ["alerts", "Phone alerts on"]];
+  function renderNextDrop() {
+    const now = Date.now();
+    const timed = (window.RELEASES || []).filter(catOk)
+      .map(r => ({ ...r, at: parseLocal(r.date, r.time) }))
+      .filter(r => r.at && r.at - now > -30 * 60000 && r.at - now < 7 * 86400000)
+      .sort((a, b) => a.at - b.at);
+    const wrap = document.getElementById("nextDropWrap");
+    wrap.hidden = !timed.length;
+    if (!timed.length) return;
+    document.getElementById("nextDrop").innerHTML = timed.slice(0, 3).map(r => {
+      const k = dropKey(r), done = STATE.checklist[k] || {};
+      return `<div class="row next">
+        <div class="main">
+          <div class="title">${esc(r.name)}${r.retailer ? `<span class="tag">${esc(r.retailer)}</span>` : ""}</div>
+          <div class="sub">${esc(whenStr(r.at))}${r.note ? " · " + esc(r.note) : ""}</div>
+          <div class="acts">${linksHtml(r.links)}<button class="btn" data-flip="${esc(r.name)}">Flip check</button></div>
+          <div class="checklist" data-drop="${esc(k)}">${PREP.map(([id, label]) =>
+            `<label><input type="checkbox" data-prep="${id}" ${done[id] ? "checked" : ""}>${label}</label>`).join("")}</div>
+        </div>
+        <div class="big" data-at="${r.at.getTime()}">${left(r.at - now)}</div>
+      </div>`;
+    }).join("");
+  }
+  document.getElementById("nextDrop").addEventListener("change", e => {
+    const box = e.target.closest("input[data-prep]"); if (!box) return;
+    const k = box.closest("[data-drop]").dataset.drop;
+    STATE.checklist[k] = { ...(STATE.checklist[k] || {}), [box.dataset.prep]: box.checked };
+    saveState();
+  });
+
+  /* ---------------- Raffles & queues ---------------- */
+  function renderRaffles() {
+    const now = Date.now();
+    const list = (window.RAFFLES || []).filter(catOk).map(r => {
+      const opens = parseLocal(r.opens), closes = parseLocal(r.closes);
+      const phase = closes && closes < now ? "closed" : opens && opens > now ? "upcoming" : "open_now";
+      return { ...r, opens, closes, phase, k: raffleKey(r) };
+    }).filter(r => r.phase !== "closed" || (now - r.closes) < 3 * 86400000)
+      .sort((a, b) => ["open_now", "upcoming", "closed"].indexOf(a.phase) - ["open_now", "upcoming", "closed"].indexOf(b.phase)
+        || ((a.closes || a.opens || 0) - (b.closes || b.opens || 0)));
+    const el = document.getElementById("raffles");
+    el.innerHTML = list.map(r => {
+      const label = { open_now: "Open", upcoming: "Opens soon", closed: "Closed" }[r.phase];
+      const timing = r.phase === "upcoming" && r.opens ? "Opens " + whenStr(r.opens)
+        : r.closes ? (r.phase === "closed" ? "Closed " : "Closes ") + whenStr(r.closes) : "Open until stock runs out";
+      const cd = r.phase === "upcoming" && r.opens ? left(r.opens - now) : r.phase === "open_now" && r.closes ? left(r.closes - now) : "";
+      const ent = !!STATE.entered[r.k];
+      return `<div class="row raffle ${ent ? "entered" : r.phase === "open_now" ? "hot" : ""}">
+        <div class="main">
+          <div class="title">${esc(r.name)}<span class="tag">${esc(r.type || "raffle")}</span>${r.retailer ? `<span class="tag">${esc(r.retailer)}</span>` : ""}</div>
+          <div class="sub">${esc(timing)}${r.note ? " · " + esc(r.note) : ""}</div>
+          <div class="acts">
+            ${r.url && r.phase !== "closed" ? `<a class="btn ${r.phase === "open_now" && !ent ? "go" : ""}" href="${esc(r.url)}" target="_blank" rel="noopener">${r.type === "queue" ? "Join queue" : "Enter"}</a>` : ""}
+            <label class="btn"><input type="checkbox" data-enter="${esc(r.k)}" ${ent ? "checked" : ""} style="margin:0 5px 0 0;vertical-align:-1px">Entered</label>
+            <button class="btn" data-flip="${esc(r.product || r.name)}">Flip check</button>
+          </div>
+        </div>
+        <span class="pill ${r.phase}">${label}</span>
+        ${cd ? `<span class="countdown" data-at="${(r.phase === "upcoming" ? r.opens : r.closes).getTime()}">${cd}</span>` : ""}
+      </div>`;
+    }).join("") || `<div class="empty">No raffles or queues listed${catSel === "All" ? "" : " for " + esc(catSel)}. Add them to raffles.js.</div>`;
+    document.getElementById("rafflesUpdated").textContent = window.RAFFLES_UPDATED
+      ? "List last updated " + window.RAFFLES_UPDATED + ". Tick Entered and the checker stops reminding you." : "";
+  }
+  document.getElementById("raffles").addEventListener("change", e => {
+    const box = e.target.closest("input[data-enter]"); if (!box) return;
+    if (box.checked) STATE.entered[box.dataset.enter] = new Date().toISOString(); else delete STATE.entered[box.dataset.enter];
+    saveState(); renderRaffles();
+  });
+
+  /* ---------------- Flip calculator ---------------- */
+  const F = id => document.getElementById(id);
+  const FLIP_DEFAULTS = { fTax: 8.25, fFee: 13.6, fOrder: 0.40, fShip: 5 };   // Houston-area sales tax; typical eBay fees
+  const savedDefaults = store.get("flipDefaults") || {};
+  for (const [id, v] of Object.entries(FLIP_DEFAULTS)) F(id).value = savedDefaults[id] ?? v;
+  const num = id => parseFloat(F(id).value) || 0;
+  function calcFlip() {
+    const buy = num("fBuy"), sell = num("fSell"), qty = Math.max(1, Math.round(num("fQty")) || 1);
+    store.set("flipDefaults", Object.fromEntries(Object.keys(FLIP_DEFAULTS).map(id => [id, num(id)])));
+    if (!buy || !sell) { F("fProfit").textContent = "—"; F("fProfit").className = "verdict"; F("fDetail").textContent = "Enter what you pay and what it sells for."; return null; }
+    const cost = buy * (1 + num("fTax") / 100);
+    const fees = sell * num("fFee") / 100 + num("fOrder");
+    const net = sell - fees - num("fShip");
+    const profit = net - cost;
+    const roi = profit / cost * 100;
+    const breakeven = (cost + num("fOrder") + num("fShip")) / (1 - num("fFee") / 100);
+    const cls = profit >= Math.max(10, cost * 0.2) ? "good" : profit > 0 ? "meh" : "bad";
+    F("fProfit").className = "verdict " + cls;
+    F("fProfit").textContent = (profit >= 0 ? "+$" : "−$") + Math.abs(profit * qty).toFixed(2) + (qty > 1 ? ` for ${qty}` : "");
+    F("fDetail").textContent = `${roi.toFixed(0)}% return · $${profit.toFixed(2)} each · cost with tax $${cost.toFixed(2)} · eBay fees $${fees.toFixed(2)} · break-even sale $${breakeven.toFixed(2)}`
+      + (cls === "good" ? " · Worth chasing" : cls === "meh" ? " · Thin margin" : " · Skip it");
+    return { buy, sell, qty, profit, roi };
+  }
+  ["fBuy", "fSell", "fTax", "fFee", "fOrder", "fShip", "fQty"].forEach(id => F(id).addEventListener("input", calcFlip));
+  const soldUrl = q => "https://www.ebay.com/sch/i.html?_nkw=" + encodeURIComponent(q) + "&LH_Sold=1&LH_Complete=1&rt=nc";
+  F("flipQuery").addEventListener("input", () => F("flipOpen").href = soldUrl(F("flipQuery").value.trim()));
+  async function lookupSold() {
+    const q = F("flipQuery").value.trim();
+    if (!q) { F("flipComps").textContent = "Type a product name first."; return; }
+    F("flipOpen").href = soldUrl(q);
+    if (!viaServer) { F("flipComps").textContent = "Automatic lookup works when the dashboard is opened with start-tracker.bat. Use Open sold listings meanwhile."; return; }
+    F("flipComps").textContent = "Checking eBay sold listings…";
+    try {
+      const r = await (await fetch("api/ebay-sold?q=" + encodeURIComponent(q))).json();
+      if (!r.count) { F("flipComps").textContent = r.error || "No sold listings found."; return; }
+      F("fSell").value = r.median.toFixed(2);
+      F("flipComps").innerHTML = `Median of <b>${r.count}</b> recent sales: <b>$${r.median.toFixed(2)}</b> (range $${r.low.toFixed(2)}–$${r.high.toFixed(2)}). `
+        + `Check the matches look right: ${r.examples.slice(0, 3).map(x => esc(x.title) + " $" + x.price.toFixed(2)).join("; ")}`;
+      calcFlip();
+    } catch { F("flipComps").textContent = "Lookup failed. Use Open sold listings and type the price."; }
+  }
+  F("flipLookup").addEventListener("click", lookupSold);
+  F("flipQuery").addEventListener("keydown", e => { if (e.key === "Enter") lookupSold(); });
+  F("flipSave").addEventListener("click", () => {
+    const r = calcFlip(); if (!r) return;
+    STATE.flips.unshift({ name: F("flipQuery").value.trim() || "Untitled", ...r, saved: new Date().toLocaleDateString("en-CA") });
+    STATE.flips = STATE.flips.slice(0, 50);
+    saveState(); renderFlips();
+  });
+  function renderFlips() {
+    F("flipSaved").innerHTML = STATE.flips.map((f, i) => `<div class="row">
+      <div class="main"><div class="title">${esc(f.name)}</div>
+        <div class="sub">Buy $${f.buy.toFixed(2)} · sells ~$${f.sell.toFixed(2)} · ${f.roi.toFixed(0)}% return · saved ${esc(f.saved)}</div></div>
+      <span class="price ${f.profit > 0 ? "in_stock" : "blocked"}">${f.profit >= 0 ? "+" : "−"}$${Math.abs(f.profit).toFixed(2)}</span>
+      <button class="btn" data-rmflip="${i}" aria-label="Remove">×</button></div>`).join("");
+  }
+  F("flipSaved").addEventListener("click", e => {
+    const b = e.target.closest("[data-rmflip]"); if (!b) return;
+    STATE.flips.splice(+b.dataset.rmflip, 1); saveState(); renderFlips();
+  });
+  // "Flip check" buttons anywhere on the page
+  document.addEventListener("click", e => {
+    const b = e.target.closest("button[data-flip]"); if (!b) return;
+    F("flipQuery").value = b.dataset.flip;
+    F("flipOpen").href = soldUrl(b.dataset.flip);
+    if (b.dataset.buy) F("fBuy").value = b.dataset.buy;
+    F("flipHead").scrollIntoView({ behavior: "smooth" });
+    lookupSold();
+  });
+
+  // Live countdowns, and re-read the raffle list with the status refresh
+  setInterval(() => document.querySelectorAll("[data-at]").forEach(el => el.textContent = left(+el.dataset.at - Date.now())), 30000);
+  setInterval(() => { renderNextDrop(); renderRaffles(); }, 60000);
+  document.getElementById("catFilter").addEventListener("click", () => setTimeout(() => { renderNextDrop(); renderRaffles(); }, 0));
+
+  loadState().then(() => { renderNextDrop(); renderRaffles(); renderFlips(); calcFlip(); });
 </script>
 </body>
 </html>

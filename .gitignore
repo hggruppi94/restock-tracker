@@ -5,3 +5,6 @@ history.js
 store-notes.json
 store-notes.tmp
 __pycache__/
+state.json
+state.tmp
+reminders.json
